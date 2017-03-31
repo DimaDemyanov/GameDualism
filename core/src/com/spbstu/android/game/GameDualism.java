@@ -7,11 +7,12 @@ import com.spbstu.android.game.Screens.MenuScreen;
 
 public class GameDualism extends Game {
 
-    public static final int WIDTH = 800;
-    public static final int HEIGHT = 480;
+    public static final int WIDTH = 1280;
+    public static final int HEIGHT = 720;
     public static final java.lang.String TITLE = "Dualism";
 
     public AssetManager assetManager = new AssetManager();
+
 
     @Override
     public void create() {

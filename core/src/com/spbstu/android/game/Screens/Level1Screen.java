@@ -6,6 +6,7 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.maps.tiled.TiledMap;
@@ -13,19 +14,31 @@ import com.badlogic.gdx.maps.tiled.TiledMapTileLayer;
 import com.badlogic.gdx.maps.tiled.TmxMapLoader;
 import com.badlogic.gdx.maps.tiled.renderers.OrthogonalTiledMapRenderer;
 import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.physics.box2d.Body;
 import com.badlogic.gdx.physics.box2d.Box2DDebugRenderer;
+import com.badlogic.gdx.physics.box2d.Contact;
+import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.Joint;
 import com.badlogic.gdx.physics.box2d.World;
+import com.badlogic.gdx.physics.box2d.joints.RopeJoint;
+import com.badlogic.gdx.physics.box2d.joints.RopeJointDef;
 import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.scenes.scene2d.InputListener;
 import com.badlogic.gdx.scenes.scene2d.Stage;
 import com.badlogic.gdx.scenes.scene2d.ui.Button;
 import com.badlogic.gdx.scenes.scene2d.ui.ImageButton;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable;
+import com.badlogic.gdx.utils.Array;
 import com.spbstu.android.game.GameDualism;
 import com.spbstu.android.game.MapParser;
 import com.spbstu.android.game.Player;
+import com.spbstu.android.game.Rope;
+import com.badlogic.gdx.physics.box2d.BodyDef;
+import com.badlogic.gdx.physics.box2d.PolygonShape;
 
 import static com.spbstu.android.game.MapParser.PPM;
+
 
 public class Level1Screen extends ScreenAdapter {
 
@@ -50,8 +63,13 @@ public class Level1Screen extends ScreenAdapter {
     private World world;
     private Box2DDebugRenderer box2DDebugRenderer;
     private Player player;
+    private boolean trapsMap[][];//массив ловушек
+    private boolean blocksMap[][];// массив блоков
 
-    private boolean trapsMap[][];
+    private int kolWidthBlocks;
+    private int kolHeightBlocks;
+    private float g = 20f; //   гравитация
+    private Rope rope;
 
     public Level1Screen(GameDualism game) {
         this.game = game;
@@ -63,15 +81,22 @@ public class Level1Screen extends ScreenAdapter {
         game.assetManager.load("Textures/character.png", Texture.class);
         game.assetManager.finishLoading();
         batch = new SpriteBatch();
-        world = new World(new Vector2(0, -20f), false);
+        world = new World(new Vector2(0, -g), false);
         player = new Player(16f / (2 * PPM),
                 16f / (2 * PPM) + 16 / PPM * 3,
                 (16 / PPM - 0.1f) / 2, world, game.assetManager);
+
+        rope = new Rope(player.body);
         MapParser.parseMapObjects(map.getLayers().get("Line").getObjects(), world);
         actionButtons();
-
-        trapsMap = new boolean[map.getProperties().get("height", Integer.class)][map.getProperties().get("width", Integer.class)];
+        kolWidthBlocks = map.getProperties().get("width", Integer.class);
+        kolHeightBlocks = map.getProperties().get("height", Integer.class);
+        trapsMap = new boolean[kolHeightBlocks][kolWidthBlocks];
+        blocksMap = new boolean[kolHeightBlocks][kolWidthBlocks];
         initTrapsMap();
+        initBlocks();
+        listeners();
+
     }
 
 
@@ -95,7 +120,7 @@ public class Level1Screen extends ScreenAdapter {
         menuButton = new ImageButton(new TextureRegionDrawable(
                 new TextureRegion(new Texture("Buttons/menu.png"))));
         changeBroButton = new ImageButton(new TextureRegionDrawable(
-                new TextureRegion(new Texture("buttons/changebrobutton.png"))));
+                new TextureRegion(new Texture("Buttons/changebrobutton.png"))));
         maxButtonsSizeDeterminate();
         stage.addActor(rightButton);
 
@@ -110,8 +135,12 @@ public class Level1Screen extends ScreenAdapter {
         upButton.addListener(new ClickListener() {
             @Override
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {
+                if (rope.isExist == true){
+                    rope.isRoped = false;
+                    rope.inFlight = true;
+                    rope.destroyJoint(world);
+                }
                 player.jump();
-
                 return true;
             }
         });
@@ -142,7 +171,7 @@ public class Level1Screen extends ScreenAdapter {
         });
 
         stage.addActor(changeBroButton);
-        changeBroButton.setBounds( width - maxButtonsSize*3/2 , 1.5f * maxButtonsSize, maxButtonsSize, maxButtonsSize);
+        changeBroButton.setBounds(width - maxButtonsSize * 3 / 2, 1.5f * maxButtonsSize, maxButtonsSize, maxButtonsSize);
     }
 
     @Override
@@ -178,9 +207,29 @@ public class Level1Screen extends ScreenAdapter {
         });
     }
 
+
     @Override
     public void show() {
         Gdx.input.setInputProcessor(stage);
+    }
+
+
+    public void listeners() {
+        stage.addListener(new InputListener() {
+            public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {// создаю слушатаеля касания к экрану
+                if ((!rope.isRoped) && (y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2 > player.body.getPosition().y * PPM + 1.5 * PPM)
+                        && (Math.abs(x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2 - player.body.getPosition().x * PPM) < 7 * PPM)
+                        && (blocksMap[(int) Math.ceil((y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2) / PPM) - 1]
+                        [(int) Math.ceil((x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2) / PPM) - 1])) {
+                    rope.xRopedBlock = x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2;
+                    rope.yRopedBlock = y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2;
+                    rope.isRoped = true;
+                    rope.buildJoint(world, player.body.getPosition().y * PPM);
+                }
+                return true;
+            }
+        });
+
     }
 
     @Override
@@ -198,16 +247,18 @@ public class Level1Screen extends ScreenAdapter {
             Gdx.gl.glClearColor(2f / 256f, 23f / 256f, 33f / 256f, 1f);
             cameraUpdate();
             batch.setProjectionMatrix(camera.combined);
-
             renderer.setView(camera);
             renderer.render();
-
             stage.act(delta);
             world.step(delta, 6, 2);
             stage.draw();
+            rope.render(batch, player.body);
             player.render(batch);
             //box2DDebugRenderer.render(world, camera.combined.scl(PPM));//надо только в дебаге
+            //box2DDebugRenderer.setDrawJoints(true);
             handleTrapsCollision(player.getTileX(), player.getTileY());
+
+
         } else {
             Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
             renderer.render();
@@ -225,7 +276,6 @@ public class Level1Screen extends ScreenAdapter {
         stage.dispose();
     }
 
-
     private void cameraUpdate() {
         moveCamera();
         camera.update();
@@ -238,9 +288,10 @@ public class Level1Screen extends ScreenAdapter {
 
         if (player.isGrounded(world) && player.jumpTimer == 0) {
             player.jumpNumber = 1;
+            rope.inFlight = false;
         }
 
-        if (!(rightButton.isPressed()) && !(leftButton.isPressed())) {
+        if (!(rightButton.isPressed()) && !(leftButton.isPressed()) &&  (!rope.isRoped) && (!rope.inFlight)) {
             player.stop();
         }
 
@@ -251,6 +302,8 @@ public class Level1Screen extends ScreenAdapter {
         if (leftButton.isPressed()) {
             player.moveLeft();
         }
+
+
     }
 
     private void moveCamera() {
@@ -259,14 +312,14 @@ public class Level1Screen extends ScreenAdapter {
         if (player.body.getPosition().x - Gdx.graphics.getWidth() / (9f * PPM) < 0)
             camera.position.set(Gdx.graphics.getWidth() / 9f, camera.position.y, camera.position.z);
 
-        if (player.body.getPosition().x + Gdx.graphics.getWidth() / (9f * PPM) > map.getProperties().get("width", Integer.class) * 16 / PPM )
-            camera.position.set(map.getProperties().get("width", Integer.class) * 16f - Gdx.graphics.getWidth() / 9f, camera.position.y, camera.position.z);
+        if (player.body.getPosition().x + Gdx.graphics.getWidth() / (9f * PPM) > kolWidthBlocks * 16 / PPM)
+            camera.position.set(kolWidthBlocks * 16f - Gdx.graphics.getWidth() / 9f, camera.position.y, camera.position.z);
 
         if (player.body.getPosition().y - Gdx.graphics.getHeight() / (9f * PPM) < 0)
             camera.position.set(camera.position.x, Gdx.graphics.getHeight() / 9f, camera.position.z);
 
-        if (player.body.getPosition().y + Gdx.graphics.getHeight() / (9f * PPM) > map.getProperties().get("height", Integer.class) * 16f / PPM)
-            camera.position.set(camera.position.x, map.getProperties().get("height", Integer.class) * 16f - Gdx.graphics.getHeight() / 9f, camera.position.z);
+        if (player.body.getPosition().y + Gdx.graphics.getHeight() / (9f * PPM) > kolHeightBlocks * 16f / PPM)
+            camera.position.set(camera.position.x, kolHeightBlocks * 16f - Gdx.graphics.getHeight() / 9f, camera.position.z);
     }
 
     private void restart() {
@@ -278,19 +331,29 @@ public class Level1Screen extends ScreenAdapter {
 
     private void handleTrapsCollision(int playerX, int playerY) {
         if (trapsMap[playerY][playerX] == true) {
-                restart();
+            // restart();
         }
+    }
+
+    private void initBlocks() {
+        final TiledMapTileLayer blocks;
+        blocks = (TiledMapTileLayer) map.getLayers().get(" Main obstacles");
+        for (int i = 0; i < kolHeightBlocks; i++)
+            for (int j = 0; j < kolWidthBlocks; j++)
+                blocksMap[i][j] = (blocks.getCell(j, i) != null);
+
+
     }
 
     private void initTrapsMap() {
         TiledMapTileLayer traps[] = new TiledMapTileLayer[3];
 
-        traps[0] = (TiledMapTileLayer)map.getLayers().get("Background-Water&amp;Lava");
-        traps[1] = (TiledMapTileLayer)map.getLayers().get("Traps-second-bro");
-        traps[2] = (TiledMapTileLayer)map.getLayers().get("Traps-first-bro");
+        traps[0] = (TiledMapTileLayer) map.getLayers().get("Background-Water&amp;Lava");
+        traps[1] = (TiledMapTileLayer) map.getLayers().get("Traps-second-bro");
+        traps[2] = (TiledMapTileLayer) map.getLayers().get("Traps-first-bro");
 
-        for (int i = 0; i < map.getProperties().get("height", Integer.class); i++) {
-            for (int j = 0; j < map.getProperties().get("width", Integer.class); j++) {
+        for (int i = 0; i < kolHeightBlocks; i++) {
+            for (int j = 0; j < kolWidthBlocks; j++) {
                 trapsMap[i][j] = (traps[0].getCell(j, i) != null || traps[1].getCell(j, i) != null || traps[2].getCell(j, i) != null);
             }
         }

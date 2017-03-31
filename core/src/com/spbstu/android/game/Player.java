@@ -10,9 +10,12 @@ import com.badlogic.gdx.physics.box2d.CircleShape;
 import com.badlogic.gdx.physics.box2d.Contact;
 import com.badlogic.gdx.physics.box2d.Fixture;
 import com.badlogic.gdx.physics.box2d.FixtureDef;
+import com.badlogic.gdx.physics.box2d.Manifold;
 import com.badlogic.gdx.physics.box2d.PolygonShape;
 import com.badlogic.gdx.physics.box2d.World;
 import com.badlogic.gdx.utils.Array;
+
+import static com.spbstu.android.game.MapParser.PPM;
 
 public class Player {
 
@@ -22,6 +25,7 @@ public class Player {
     public Body body;
     public int jumpNumber;
     public int jumpTimer;
+
 
     public Player(float x, float y, float radius, World world, AssetManager assetManager) {
         BodyDef bodyDef = new BodyDef();
@@ -70,14 +74,13 @@ public class Player {
             body.setLinearVelocity(Math.signum(body.getLinearVelocity().x) * maxVelocity, body.getLinearVelocity().y);
         }
     }
+    
 
     public void jump() {
         jumpTimer = 3;
-
         if (jumpNumber <= 2) {
             body.setLinearVelocity(body.getLinearVelocity().x, 0f);
             body.applyLinearImpulse(0, body.getMass() * 10f, body.getPosition().x, body.getPosition().y, false);
-
             jumpNumber++;
         }
     }
@@ -102,16 +105,16 @@ public class Player {
     public void render(SpriteBatch batch) {
         batch.begin();
         batch.draw(texture,
-                body.getPosition().x * MapParser.PPM - texture.getWidth() / 2,
-                body.getPosition().y * MapParser.PPM - texture.getHeight() / 2);
+                body.getPosition().x * PPM - texture.getWidth() / 2,
+                body.getPosition().y * PPM - texture.getHeight() / 2);
         batch.end();
     }
 
     public int getTileX() {
-        return (int)Math.floor(body.getPosition().x);
+        return (int) Math.floor(body.getPosition().x);
     }
 
     public int getTileY() {
-        return (int)Math.floor(body.getPosition().y);
+        return (int) Math.floor(body.getPosition().y);
     }
 }

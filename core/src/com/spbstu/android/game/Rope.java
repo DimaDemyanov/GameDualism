@@ -40,26 +40,27 @@ public class Rope {
     }
 
     public void buildJoint(World world, float x, float y, Body playerBody, boolean blocksMap[][]) {
+        float possibleX ,possibleY;
         if ((y > playerBody.getPosition().y * PPM + 1.5 * PPM) && (Math.abs(x - playerBody.getPosition().x * PPM) < 7 * PPM)) {
-            xRopedBlock = playerBody.getPosition().x*PPM;
-            yRopedBlock = playerBody.getPosition().y*PPM;
+            possibleX = playerBody.getPosition().x*PPM;
+            possibleY = playerBody.getPosition().y*PPM;
             L = (float) norm(playerBody.getPosition().x * PPM, x, playerBody.getPosition().y * PPM, y);
             H = y - playerBody.getPosition().y * PPM;
             alpha = (float) (Math.asin(H / L));
             if (playerBody.getPosition().x * PPM > x)
                 alpha = (float) (Math.PI - alpha);
             for (int i = 0; i < 2*L / PPM; i++) {
-                xRopedBlock += PPM/2 * Math.cos(alpha);
-                yRopedBlock += PPM/2 * Math.sin(alpha);
-                if(yRopedBlock > (blocksMap.length-1) *PPM)
-                    yRopedBlock =  (blocksMap.length-1) *PPM;
-                if(xRopedBlock > (blocksMap[0].length-1) *PPM)
+                possibleX += PPM/2 * Math.cos(alpha);
+                possibleY += PPM/2 * Math.sin(alpha);
+                if(possibleY > (blocksMap.length-1) *PPM)
+                    possibleY =  (blocksMap.length-1) *PPM;
+                if(possibleX > (blocksMap[0].length-1) *PPM)
                     xRopedBlock =  (blocksMap[0].length-1) *PPM;
-                if(xRopedBlock < 0)
+                if(possibleX < 0)
                     xRopedBlock =  0;
-                if (blocksMap[(int) Math.floor((yRopedBlock) / PPM)][(int) Math.floor((xRopedBlock) / PPM) ]) {
-                    xRopedBlock = (float) (Math.floor(xRopedBlock / PPM ) * PPM + 0.5 * PPM);
-                    yRopedBlock = (float) (Math.floor(yRopedBlock / PPM  ) * PPM + 0.5 * PPM);
+                if (blocksMap[(int) Math.floor((possibleY) / PPM)][(int) Math.floor((possibleX) / PPM) ]) {
+                    xRopedBlock = (float) (Math.floor(possibleX / PPM ) * PPM + 0.5 * PPM);
+                    yRopedBlock = (float) (Math.floor(possibleY / PPM  ) * PPM + 0.5 * PPM);
                     def.position.set((xRopedBlock - 2 * PPM) / PPM, yRopedBlock / PPM);
                     rDef.bodyB = world.createBody(def);
                     rDef.maxLength = 0.8f * L / PPM;

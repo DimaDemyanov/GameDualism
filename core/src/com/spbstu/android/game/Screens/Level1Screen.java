@@ -96,7 +96,6 @@ public class Level1Screen extends ScreenAdapter {
         initTrapsMap();
         initBlocks();
         listeners();
-
     }
 
 
@@ -217,19 +216,23 @@ public class Level1Screen extends ScreenAdapter {
     public void listeners() {
         stage.addListener(new InputListener() {
             public boolean touchDown(InputEvent event, float x, float y, int pointer, int button) {// создаю слушатаеля касания к экрану
-                if ((!rope.isRoped) && (y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2 > player.body.getPosition().y * PPM + 1.5 * PPM)
-                        && (Math.abs(x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2 - player.body.getPosition().x * PPM) < 7 * PPM)
-                        && (blocksMap[(int) Math.ceil((y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2) / PPM) - 1]
-                        [(int) Math.ceil((x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2) / PPM) - 1])) {
-                    rope.xRopedBlock = x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2;
-                    rope.yRopedBlock = y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2;
-                    rope.isRoped = true;
-                    rope.buildJoint(world, player.body.getPosition().y * PPM);
-                }
+                /*if ((!rope.isRoped) && (y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2 > player.body.getPosition().y * PPM + 1.5 * PPM)
+                        && (Math.abs(x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2 - player.body.getPosition().x * PPM) < 7 * PPM)) {
+                    if
+                            (blocksMap[(int) Math.ceil((y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2) / PPM) - 1]
+                            [(int) Math.ceil((x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2) / PPM) - 1]) {
+                        rope.xRopedBlock = (int) (Math.ceil((x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2) / PPM) * PPM - 0.5 * PPM);
+                        rope.yRopedBlock = (int) (Math.ceil((y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2) / PPM) * PPM - 0.5 * PPM);
+                        System.out.println(rope.xRopedBlock + " " + rope.yRopedBlock);
+                        rope.isRoped = true;
+                        //rope.buildJoint(world, player.body.getPosition().y * PPM);
+                    }
+                }*/
+                rope.buildJoint(world, x / width * camera.viewportWidth + camera.position.x - camera.viewportWidth / 2,
+                        y / height * camera.viewportHeight + camera.position.y - camera.viewportHeight / 2, player.body,blocksMap);
                 return true;
             }
         });
-
     }
 
     @Override

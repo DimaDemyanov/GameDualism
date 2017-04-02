@@ -1,5 +1,6 @@
 package com.spbstu.android.game;
 
+import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Sprite;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -28,39 +29,65 @@ public class Rope {
     private Sprite spriteRope;
     public float yRopedBlock, xRopedBlock;
     private float H, L, alpha;
-    public Rope(Body bodyA){
+
+    public Rope(Body bodyA) {
         spriteRope = new Sprite(new Texture("rope.png"));
         def = new BodyDef();
         rDef = new RopeJointDef();
         def.type = BodyDef.BodyType.StaticBody;
-        rDef.bodyA  = bodyA;
+        rDef.bodyA = bodyA;
 
     }
 
-    public void buildJoint(World world, float bodyY){
-        H = yRopedBlock - bodyY;
-        def.position.set((xRopedBlock - 2*PPM)/PPM , yRopedBlock/PPM );
-        rDef.bodyB = world.createBody(def);
-        rDef.maxLength = 0.6f*H/PPM;
-        joint = world.createJoint(rDef);
-        isExist = true;
-
+    public void buildJoint(World world, float x, float y, Body playerBody, boolean blocksMap[][]) {
+        if ((y > playerBody.getPosition().y * PPM + 1.5 * PPM) && (Math.abs(x - playerBody.getPosition().x * PPM) < 7 * PPM)) {
+            xRopedBlock = playerBody.getPosition().x*PPM;
+            yRopedBlock = playerBody.getPosition().y*PPM;
+            L = (float) norm(playerBody.getPosition().x * PPM, x, playerBody.getPosition().y * PPM, y);
+            H = y - playerBody.getPosition().y * PPM;
+            alpha = (float) (Math.asin(H / L));
+            if (playerBody.getPosition().x * PPM > x)
+                alpha = (float) (Math.PI - alpha);
+            for (int i = 0; i < 2*L / PPM; i++) {
+                xRopedBlock += PPM/2 * Math.cos(alpha);
+                yRopedBlock += PPM/2 * Math.sin(alpha);
+                if(yRopedBlock > (blocksMap.length-1) *PPM)
+                    yRopedBlock =  (blocksMap.length-1) *PPM;
+                if(xRopedBlock > (blocksMap[0].length-1) *PPM)
+                    xRopedBlock =  (blocksMap[0].length-1) *PPM;
+                if(xRopedBlock < 0)
+                    xRopedBlock =  0;
+                if (blocksMap[(int) Math.floor((yRopedBlock) / PPM)][(int) Math.floor((xRopedBlock) / PPM) ]) {
+                    xRopedBlock = (float) (Math.floor(xRopedBlock / PPM ) * PPM + 0.5 * PPM);
+                    yRopedBlock = (float) (Math.floor(yRopedBlock / PPM  ) * PPM + 0.5 * PPM);
+                    def.position.set((xRopedBlock - 2 * PPM) / PPM, yRopedBlock / PPM);
+                    rDef.bodyB = world.createBody(def);
+                    rDef.maxLength = 0.8f * L / PPM;
+                    if(isRoped)
+                        world.destroyJoint(joint);
+                    isRoped = true;
+                    joint = world.createJoint(rDef);
+                    isExist = true;
+                    break;
+                }
+            }
+        }
     }
-
     public void destroyJoint(World world) {
         world.destroyJoint(joint);
         isExist = false;
     }
+
     public void render(SpriteBatch batch, Body body) { //рисую веревку, рисую, где хочу, законом не запрещено
-        if(isRoped) {
-        batch.begin();
-            H = yRopedBlock - body.getPosition().y*PPM;
-            L = (float)norm(body.getPosition().x *PPM, xRopedBlock,body.getPosition().y*PPM, yRopedBlock );
-            alpha = (float)(Math.asin(H / L)/2/Math.PI*360);
-            spriteRope.setOrigin(0,0);// задаю поворот относительно левого нижнего угла
-            spriteRope.setBounds(body.getPosition().x * PPM, body.getPosition().y*PPM, 2,L);
-            if(body.getPosition().x*PPM > xRopedBlock )
-                alpha = -1*alpha +90;
+        if (isRoped) {
+            batch.begin();
+            H = yRopedBlock - body.getPosition().y * PPM;
+            L = (float) norm(body.getPosition().x * PPM, xRopedBlock, body.getPosition().y * PPM, yRopedBlock);
+            alpha = (float) (Math.asin(H / L) / 2 / Math.PI * 360);
+            spriteRope.setOrigin(0, 0);// задаю поворот относительно левого нижнего угла
+            spriteRope.setBounds(body.getPosition().x * PPM, body.getPosition().y * PPM, 2, L);
+            if (body.getPosition().x * PPM > xRopedBlock)
+                alpha = -1 * alpha + 90;
             else
                 alpha -= 90;
             spriteRope.setRotation(alpha);
